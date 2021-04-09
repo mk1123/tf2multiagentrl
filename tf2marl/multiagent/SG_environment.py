@@ -210,9 +210,7 @@ class MultiAgentEnv(gym.Env):
         my_baseline_energy = pd.DataFrame(data={"net_energy_use": working_hour_energy})
         for i in range(self.number_of_participants):
             player = CurtailandShiftPerson(
-                my_baseline_energy,
-                points_multiplier=10,
-                response=self.response_type_string,
+                my_baseline_energy, points_multiplier=10,
             )  # , )
             player_dict["player_{}".format(i)] = player
 
@@ -230,27 +228,13 @@ class MultiAgentEnv(gym.Env):
         Returns:
             Action Space for environment based on action_space_str 
         """
-
         # TODO: Normalize obs_space !
+        dim = 10
         if self.yesterday_in_state:
-            if self.energy_in_state:
-                return spaces.Box(
-                    low=-np.inf, high=np.inf, shape=(30,), dtype=np.float32
-                )
-            else:
-                return spaces.Box(
-                    low=-np.inf, high=np.inf, shape=(20,), dtype=np.float32
-                )
-
-        else:
-            if self.energy_in_state:
-                return spaces.Box(
-                    low=-np.inf, high=np.inf, shape=(20,), dtype=np.float32
-                )
-            else:
-                return spaces.Box(
-                    low=-np.inf, high=np.inf, shape=(10,), dtype=np.float32
-                )
+            dim += 10
+        if self.energy_in_state:
+            dim += 10
+        return spaces.Box(low=-np.inf, high=np.inf, shape=(dim,), dtype=np.float32)
 
     def _get_prices(self):
         """
@@ -402,6 +386,8 @@ class MultiAgentEnv(gym.Env):
             reward = player_reward.scaled_cost_distance(player_ideal_demands)
         elif reward_function == "log_cost_regularized":
             reward = player_reward.log_cost_regularized()
+        elif reward_function == "log_cost":
+            reward = player_reward.log_cost()
         else:
             raise Exception("reward_function not defined")
 
