@@ -17,6 +17,14 @@ from tf2marl.multiagent.reward import Reward
 
 import pickle
 
+
+def normalize(v):
+    norm = np.linalg.norm(v, ord=1)
+    if norm == 0:
+        norm = np.finfo(v.dtype).eps
+    return v / norm
+
+
 # environment for all agents in the multiagent world
 # currently code assumes that no agents will be created/destroyed at runtime!
 class MultiAgentEnv(gym.Env):
@@ -281,7 +289,7 @@ class MultiAgentEnv(gym.Env):
                 all_prices.append(price)
                 day += 1
 
-        return np.array(all_prices)
+        return normalize(np.array(all_prices))
 
     def _simulate_human(self, action, agent):
         """
