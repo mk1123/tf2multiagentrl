@@ -273,7 +273,7 @@ class MultiAgentEnv(gym.Env):
                 all_prices.append(price)
                 day += 1
 
-        return normalize(np.array(all_prices))
+        return np.array(all_prices)
 
     def _simulate_human(self, action, agent):
         """
