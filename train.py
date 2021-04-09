@@ -54,7 +54,7 @@ def train_config():
     # available agent: maddpg, matd3, mad3pg, masac
 
     # General Training Hyperparameters
-    lr = 1e-1  # learning rate for critics and policies
+    lr = 1e-4  # learning rate for critics and policies
     gamma = 0.95  # decay used in environments
     batch_size = 2048  # batch size for training
     num_layers = 2  # hidden layers per network
