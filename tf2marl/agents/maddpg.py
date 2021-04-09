@@ -1,3 +1,4 @@
+import pdb
 import numpy as np
 import tensorflow as tf
 
@@ -9,9 +10,25 @@ from tf2marl.common.util import space_n_to_shape_n, clip_by_local_norm
 
 
 class MADDPGAgent(AbstractAgent):
-    def __init__(self, obs_space_n, act_space_n, agent_index, batch_size, buff_size, lr, num_layer, num_units, gamma,
-                 tau, prioritized_replay=False, alpha=0.6, max_step=None, initial_beta=0.6, prioritized_replay_eps=1e-6,
-                 _run=None):
+    def __init__(
+        self,
+        obs_space_n,
+        act_space_n,
+        agent_index,
+        batch_size,
+        buff_size,
+        lr,
+        num_layer,
+        num_units,
+        gamma,
+        tau,
+        prioritized_replay=False,
+        alpha=0.6,
+        max_step=None,
+        initial_beta=0.6,
+        prioritized_replay_eps=1e-6,
+        _run=None,
+    ):
         """
         An object containing critic, actor and training functions for Multi-Agent DDPG.
         """
@@ -20,18 +37,49 @@ class MADDPGAgent(AbstractAgent):
         assert isinstance(obs_space_n[0], Space)
         obs_shape_n = space_n_to_shape_n(obs_space_n)
         act_shape_n = space_n_to_shape_n(act_space_n)
-        super().__init__(buff_size, obs_shape_n, act_shape_n, batch_size, prioritized_replay, alpha, max_step, initial_beta,
-                         prioritized_replay_eps=prioritized_replay_eps)
+        super().__init__(
+            buff_size,
+            obs_shape_n,
+            act_shape_n,
+            batch_size,
+            prioritized_replay,
+            alpha,
+            max_step,
+            initial_beta,
+            prioritized_replay_eps=prioritized_replay_eps,
+        )
 
         act_type = type(act_space_n[0])
-        self.critic = MADDPGCriticNetwork(num_layer, num_units, lr, obs_shape_n, act_shape_n, act_type, agent_index)
-        self.critic_target = MADDPGCriticNetwork(num_layer, num_units, lr, obs_shape_n, act_shape_n, act_type, agent_index)
+        self.critic = MADDPGCriticNetwork(
+            num_layer, num_units, lr, obs_shape_n, act_shape_n, act_type, agent_index
+        )
+        self.critic_target = MADDPGCriticNetwork(
+            num_layer, num_units, lr, obs_shape_n, act_shape_n, act_type, agent_index
+        )
         self.critic_target.model.set_weights(self.critic.model.get_weights())
 
-        self.policy = MADDPGPolicyNetwork(num_layer, num_units, lr, obs_shape_n, act_shape_n[agent_index], act_type, 1,
-                                          self.critic, agent_index)
-        self.policy_target = MADDPGPolicyNetwork(num_layer, num_units, lr, obs_shape_n, act_shape_n[agent_index], act_type, 1,
-                                                 self.critic, agent_index)
+        self.policy = MADDPGPolicyNetwork(
+            num_layer,
+            num_units,
+            lr,
+            obs_shape_n,
+            act_shape_n[agent_index],
+            act_type,
+            1,
+            self.critic,
+            agent_index,
+        )
+        self.policy_target = MADDPGPolicyNetwork(
+            num_layer,
+            num_units,
+            lr,
+            obs_shape_n,
+            act_shape_n[agent_index],
+            act_type,
+            1,
+            self.critic,
+            agent_index,
+        )
         self.policy_target.model.set_weights(self.policy.model.get_weights())
 
         self.batch_size = batch_size
@@ -58,6 +106,7 @@ class MADDPGAgent(AbstractAgent):
         """
         Implements the updates of the target networks, which slowly follow the real network.
         """
+
         def update_target_network(net: tf.keras.Model, target_net: tf.keras.Model):
             net_weights = np.array(net.get_weights())
             target_net_weights = np.array(target_net.get_weights())
@@ -75,10 +124,21 @@ class MADDPGAgent(AbstractAgent):
         assert agents[self.agent_index] is self
 
         if self.prioritized_replay:
-            obs_n, acts_n, rew_n, next_obs_n, done_n, weights, indices = \
-                self.replay_buffer.sample(self.batch_size, beta=self.beta_schedule.value(step))
+            (
+                obs_n,
+                acts_n,
+                rew_n,
+                next_obs_n,
+                done_n,
+                weights,
+                indices,
+            ) = self.replay_buffer.sample(
+                self.batch_size, beta=self.beta_schedule.value(step)
+            )
         else:
-            obs_n, acts_n, rew_n, next_obs_n, done_n = self.replay_buffer.sample(self.batch_size)
+            obs_n, acts_n, rew_n, next_obs_n, done_n = self.replay_buffer.sample(
+                self.batch_size
+            )
             weights = tf.ones(rew_n.shape)
 
         # Train the critic, using the target actions in the target critic network, to determine the
@@ -87,39 +147,59 @@ class MADDPGAgent(AbstractAgent):
         target_q_next = self.critic_target.predict(next_obs_n, target_act_next)
         q_train_target = rew_n[:, None] + self.decay * target_q_next
 
-        td_loss = self.critic.train_step(obs_n, acts_n, q_train_target, weights).numpy()[:, 0]
+        td_loss = self.critic.train_step(
+            obs_n, acts_n, q_train_target, weights
+        ).numpy()[:, 0]
 
         # Train the policy.
         policy_loss = self.policy.train(obs_n, acts_n)
 
         # Update priorities if using prioritized replay
         if self.prioritized_replay:
-            self.replay_buffer.update_priorities(indices, td_loss + self.prioritized_replay_eps)
+            self.replay_buffer.update_priorities(
+                indices, td_loss + self.prioritized_replay_eps
+            )
 
         # Update target networks.
         self.update_target_networks(self.tau)
 
-        self._run.log_scalar('agent_{}.train.policy_loss'.format(self.agent_index), policy_loss.numpy(), step)
-        self._run.log_scalar('agent_{}.train.q_loss0'.format(self.agent_index), np.mean(td_loss), step)
+        self._run.log_scalar(
+            "agent_{}.train.policy_loss".format(self.agent_index),
+            policy_loss.numpy(),
+            step,
+        )
+        self._run.log_scalar(
+            "agent_{}.train.q_loss0".format(self.agent_index), np.mean(td_loss), step
+        )
 
         return [td_loss, policy_loss]
 
     def save(self, fp):
-        self.critic.model.save_weights(fp + 'critic.h5',)
-        self.critic_target.model.save_weights(fp + 'critic_target.h5')
-        self.policy.model.save_weights(fp + 'policy.h5')
-        self.policy_target.model.save_weights(fp + 'policy_target.h5')
+        self.critic.model.save_weights(fp + "critic.h5",)
+        self.critic_target.model.save_weights(fp + "critic_target.h5")
+        self.policy.model.save_weights(fp + "policy.h5")
+        self.policy_target.model.save_weights(fp + "policy_target.h5")
 
     def load(self, fp):
-        self.critic.model.load_weights(fp + 'critic.h5')
-        self.critic_target.model.load_weights(fp + 'critic_target.h5')
-        self.policy.model.load_weights(fp + 'policy.h5')
-        self.policy_target.model.load_weights(fp + 'policy_target.h5')
+        self.critic.model.load_weights(fp + "critic.h5")
+        self.critic_target.model.load_weights(fp + "critic_target.h5")
+        self.policy.model.load_weights(fp + "policy.h5")
+        self.policy_target.model.load_weights(fp + "policy_target.h5")
 
 
 class MADDPGPolicyNetwork(object):
-    def __init__(self, num_layers, units_per_layer, lr, obs_n_shape, act_shape, act_type,
-                 gumbel_temperature, q_network, agent_index):
+    def __init__(
+        self,
+        num_layers,
+        units_per_layer,
+        lr,
+        obs_n_shape,
+        act_shape,
+        act_type,
+        gumbel_temperature,
+        q_network,
+        agent_index,
+    ):
         """
         Implementation of the policy network, with optional gumbel softmax activation at the final layer.
         """
@@ -144,16 +224,25 @@ class MADDPGPolicyNetwork(object):
 
         self.hidden_layers = []
         for idx in range(num_layers):
-            layer = tf.keras.layers.Dense(units_per_layer, activation='relu',
-                                          name='ag{}pol_hid{}'.format(agent_index, idx))
+            layer = tf.keras.layers.Dense(
+                units_per_layer,
+                activation="relu",
+                name="ag{}pol_hid{}".format(agent_index, idx),
+            )
             self.hidden_layers.append(layer)
 
         if self.use_gumbel:
-            self.output_layer = tf.keras.layers.Dense(self.act_shape, activation='linear',
-                                                      name='ag{}pol_out{}'.format(agent_index, idx))
+            self.output_layer = tf.keras.layers.Dense(
+                self.act_shape,
+                activation="linear",
+                name="ag{}pol_out{}".format(agent_index, idx),
+            )
         else:
-            self.output_layer = tf.keras.layers.Dense(self.act_shape, activation='tanh',
-                                                      name='ag{}pol_out{}'.format(agent_index, idx))
+            self.output_layer = tf.keras.layers.Dense(
+                self.act_shape,
+                activation="tanh",
+                name="ag{}pol_out{}".format(agent_index, idx),
+            )
 
         # connect layers
         x = self.obs_input
@@ -181,7 +270,9 @@ class MADDPGPolicyNetwork(object):
         x = obs
         for idx in range(self.num_layers):
             x = self.hidden_layers[idx](x)
-        outputs = self.output_layer(x)  # log probabilities of the gumbel softmax dist are the output of the network
+        outputs = self.output_layer(
+            x
+        )  # log probabilities of the gumbel softmax dist are the output of the network
         return outputs
 
     @tf.function
@@ -189,6 +280,7 @@ class MADDPGPolicyNetwork(object):
         outputs = self.forward_pass(obs)
         if self.use_gumbel:
             outputs = self.gumbel_softmax_sample(outputs)
+
         return outputs
 
     @tf.function
@@ -203,17 +295,32 @@ class MADDPGPolicyNetwork(object):
                 act_n[self.agent_index] = x
             q_value = self.q_network._predict_internal(obs_n + act_n)
             policy_regularization = tf.math.reduce_mean(tf.math.square(x))
-            loss = -tf.math.reduce_mean(q_value) + 1e-3 * policy_regularization  # gradient plus regularization
+            loss = (
+                -tf.math.reduce_mean(q_value) + 1e-3 * policy_regularization
+            )  # gradient plus regularization
 
-        gradients = tape.gradient(loss, self.model.trainable_variables)  # todo not sure if this really works
+        gradients = tape.gradient(
+            loss, self.model.trainable_variables
+        )  # todo not sure if this really works
         # gradients = tf.clip_by_global_norm(gradients, self.clip_norm)[0]
         local_clipped = clip_by_local_norm(gradients, self.clip_norm)
-        self.optimizer.apply_gradients(zip(local_clipped, self.model.trainable_variables))
+        self.optimizer.apply_gradients(
+            zip(local_clipped, self.model.trainable_variables)
+        )
         return loss
 
 
 class MADDPGCriticNetwork(object):
-    def __init__(self, num_hidden_layers, units_per_layer, lr, obs_n_shape, act_shape_n, act_type, agent_index):
+    def __init__(
+        self,
+        num_hidden_layers,
+        units_per_layer,
+        lr,
+        obs_n_shape,
+        act_shape_n,
+        act_type,
+        agent_index,
+    ):
         """
         Implementation of a critic to represent the Q-Values. Basically just a fully-connected
         regression ANN.
@@ -231,22 +338,30 @@ class MADDPGCriticNetwork(object):
         # each agent's action and obs are treated as separate inputs
         self.obs_input_n = []
         for idx, shape in enumerate(self.obs_shape_n):
-            self.obs_input_n.append(tf.keras.layers.Input(shape=shape, name='obs_in' + str(idx)))
+            self.obs_input_n.append(
+                tf.keras.layers.Input(shape=shape, name="obs_in" + str(idx))
+            )
 
         self.act_input_n = []
         for idx, shape in enumerate(self.act_shape_n):
-            self.act_input_n.append(tf.keras.layers.Input(shape=shape, name='act_in' + str(idx)))
+            self.act_input_n.append(
+                tf.keras.layers.Input(shape=shape, name="act_in" + str(idx))
+            )
 
         self.input_concat_layer = tf.keras.layers.Concatenate()
 
         self.hidden_layers = []
         for idx in range(num_hidden_layers):
-            layer = tf.keras.layers.Dense(units_per_layer, activation='relu',
-                                          name='ag{}crit_hid{}'.format(agent_index, idx))
+            layer = tf.keras.layers.Dense(
+                units_per_layer,
+                activation="relu",
+                name="ag{}crit_hid{}".format(agent_index, idx),
+            )
             self.hidden_layers.append(layer)
 
-        self.output_layer = tf.keras.layers.Dense(1, activation='linear',
-                                                  name='ag{}crit_out{}'.format(agent_index, idx))
+        self.output_layer = tf.keras.layers.Dense(
+            1, activation="linear", name="ag{}crit_out{}".format(agent_index, idx)
+        )
 
         # connect layers
         x = self.input_concat_layer(self.obs_input_n + self.act_input_n)
@@ -254,9 +369,11 @@ class MADDPGCriticNetwork(object):
             x = self.hidden_layers[idx](x)
         x = self.output_layer(x)
 
-        self.model = tf.keras.Model(inputs=self.obs_input_n + self.act_input_n,  # list concatenation
-                                    outputs=[x])
-        self.model.compile(self.optimizer, loss='mse')
+        self.model = tf.keras.Model(
+            inputs=self.obs_input_n + self.act_input_n,  # list concatenation
+            outputs=[x],
+        )
+        self.model.compile(self.optimizer, loss="mse")
 
     def predict(self, obs_n, act_n):
         """
@@ -297,6 +414,8 @@ class MADDPGCriticNetwork(object):
         gradients = tape.gradient(loss, self.model.trainable_variables)
 
         local_clipped = clip_by_local_norm(gradients, self.clip_norm)
-        self.optimizer.apply_gradients(zip(local_clipped, self.model.trainable_variables))
+        self.optimizer.apply_gradients(
+            zip(local_clipped, self.model.trainable_variables)
+        )
 
         return td_loss

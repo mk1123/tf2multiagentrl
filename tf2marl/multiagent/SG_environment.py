@@ -396,6 +396,7 @@ class MultiAgentEnv(gym.Env):
             reward = player_reward.log_cost_regularized()
         else:
             raise Exception("reward_function not defined")
+
         return reward
 
     def reset(self):
@@ -410,3 +411,4 @@ class MultiAgentEnv(gym.Env):
 
     def close(self):
         pass
+
