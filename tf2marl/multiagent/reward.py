@@ -98,11 +98,10 @@ class Reward:
         scaler = MinMaxScaler(feature_range=(self.min_demand, self.max_demand))
         ## ?
         scaled_energy = np.squeeze(scaler.fit_transform(self.energy_use.reshape(-1, 1)))
-
         output = -np.log(np.dot(scaled_energy, self.prices)) - 10 * (
             np.sum(self.energy_use) < (10 * (0.5 * self.baseline_max_demand))
-        )  
-        print("Cost:", output)
+        )
+        # print("Cost:", output)
         return output
         # -
         # 10 * ())
