@@ -298,11 +298,31 @@ class MultiAgentEnv(gym.Env):
 
         return player_energy
 
+    def _points_from_action(self, action):
+        """
+        Purpose: Convert agent actions into incentives (conversion is for multidiscrete setting)
+        Args:
+            Action: 10-dim vector corresponding to action for each hour 8AM - 5PM
+        Returns: Points: 10-dim vector of incentives for game (same incentive for each player)
+        """
+        if self.action_space_string == "multidiscrete":
+            # Mapping 0 -> 0.0, 1 -> 5.0, 2 -> 10.0
+            points = action * (10 / (self.action_subspace - 1))
+        elif self.action_space_string == "continuous":
+            # Continuous space is symmetric [-1,1], we map to -> [0,10] by adding 1 and multiplying by 5
+            points = 5 * (action + np.ones_like(action))
+        elif self.action_space_string == "continuous_normalized":
+            points = 10 * (action / np.sum(action))
+        return points
+
     def step(self, action_n):
+        points_n = []
         for i, action in enumerate(action_n):
             action = np.asarray(action)
             if self.action_space_string == "continuous":
-                action = np.clip(action, 0, 10)
+                action = np.clip(action, -1, 1)
+                points = self._points_from_action(action)
+                points_n.append(points)
                 action_n[i] = action
             else:
                 raise Exception("Wrong action_space_string")
