@@ -106,13 +106,13 @@ def make_env(scenario_name) -> MultiAgentEnv:
     # create world
     # world = scenario.make_world()
     # env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation)
-    
+
     env = MultiAgentEnv(
         action_space_string="continuous",
         response_type_string="l",  # "m"
         number_of_participants=10,
         one_day=15,
-        energy_in_state=True,
+        energy_in_state=False,
         yesterday_in_state=False,
         day_of_week=False,
         pricing_type="TOU",
