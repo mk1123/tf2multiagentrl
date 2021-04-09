@@ -56,7 +56,7 @@ def train_config():
     # General Training Hyperparameters
     lr = 1e-4  # learning rate for critics and policies
     gamma = 0.95  # decay used in environments
-    batch_size = 2048  # batch size for training
+    batch_size = 128  # batch size for training
     num_layers = 2  # hidden layers per network
     num_units = 64  # units per hidden layer
 
