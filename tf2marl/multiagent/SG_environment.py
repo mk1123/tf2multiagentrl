@@ -12,7 +12,7 @@ import tensorflow as tf
 
 # manan these are in the same directory -- you may need to add that to the path, but prob not
 from tf2marl.multiagent.utils import price_signal, fourier_points_from_action
-from tf2marl.multiagent.agents import DeterministicFunctionPerson
+from tf2marl.multiagent.agents import DeterministicFunctionPerson, CurtailandShiftPerson
 from tf2marl.multiagent.reward import Reward
 
 import pickle
@@ -209,7 +209,7 @@ class MultiAgentEnv(gym.Env):
 
         my_baseline_energy = pd.DataFrame(data={"net_energy_use": working_hour_energy})
         for i in range(self.number_of_participants):
-            player = DeterministicFunctionPerson(
+            player = CurtailandShiftPerson(
                 my_baseline_energy,
                 points_multiplier=10,
                 response=self.response_type_string,
